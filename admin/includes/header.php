@@ -1,8 +1,8 @@
 <?php
-$company   = getCompanySettings();
-$user      = Auth::user();
+$company     = getCompanySettings();
+$user        = Auth::user();
 $unreadCount = getUnreadNotificationCount(Auth::id());
-$currentPage = basename($_SERVER['PHP_SELF'], '.php');
+$navNotifications = getRecentNotifications(Auth::id(), 5);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -27,46 +27,51 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
     <div class="app-wrapper">
         <?php require __DIR__ . '/sidebar.php'; ?>
 
-        <div class="main-content">
+        <div class="main-content" id="mainContent">
             <header class="topbar">
-                <button class="sidebar-toggle d-lg-none" id="sidebarToggle" aria-label="Toggle sidebar">
-                    <i class="bi bi-list"></i>
-                </button>
+                <div class="topbar-left">
+                    <button type="button" class="sidebar-toggle d-lg-none" id="sidebarToggle" aria-label="Open menu">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <div class="topbar-title">
+                        <div class="topbar-page-title"><?= e($pageTitle ?? 'Dashboard') ?></div>
+                        <?php if (!empty($pageSubtitle)): ?>
+                            <p class="topbar-page-subtitle"><?= e($pageSubtitle) ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
 
-                <div class="topbar-search d-none d-md-block">
+                <div class="topbar-search d-none d-md-flex">
                     <i class="bi bi-search"></i>
-                    <input type="text" placeholder="Search cases, clients, invoices..." class="form-control">
+                    <input type="search" id="globalSearch" placeholder="Type to search..." class="form-control" autocomplete="off">
                 </div>
 
                 <div class="topbar-actions">
                     <div class="dropdown">
-                        <button class="topbar-btn" data-bs-toggle="dropdown" aria-expanded="false">
+                        <button type="button" class="topbar-btn" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
                             <i class="bi bi-bell"></i>
                             <?php if ($unreadCount > 0): ?>
-                                <span class="notification-dot"><?= $unreadCount ?></span>
+                                <span class="notification-dot"><?= $unreadCount > 9 ? '9+' : $unreadCount ?></span>
                             <?php endif; ?>
                         </button>
                         <div class="dropdown-menu dropdown-menu-end notification-dropdown">
-                            <div class="dropdown-header d-flex justify-content-between align-items-center">
+                            <div class="dropdown-header">
                                 <span>Notifications</span>
                                 <?php if ($unreadCount > 0): ?>
-                                    <span class="badge bg-primary"><?= $unreadCount ?> new</span>
+                                    <span class="badge rounded-pill bg-primary"><?= $unreadCount ?> new</span>
                                 <?php endif; ?>
                             </div>
-                            <?php
-                            $notifications = getRecentNotifications(Auth::id(), 4);
-                            if (empty($notifications)):
-                            ?>
-                                <div class="dropdown-item-text text-muted text-center py-3">No notifications</div>
+                            <?php if (empty($navNotifications)): ?>
+                                <div class="dropdown-item-text text-muted text-center py-4 small">No notifications</div>
                             <?php else: ?>
-                                <?php foreach ($notifications as $notif): ?>
+                                <?php foreach ($navNotifications as $notif): ?>
                                     <a href="#" class="dropdown-item notification-item <?= !$notif['is_read'] ? 'unread' : '' ?>">
                                         <div class="notification-icon">
                                             <i class="bi <?= notificationIcon($notif['type']) ?>"></i>
                                         </div>
                                         <div class="notification-content">
                                             <strong><?= e($notif['title']) ?></strong>
-                                            <p><?= e($notif['message']) ?></p>
+                                            <p><?= e(mb_strimwidth($notif['message'], 0, 72, '...')) ?></p>
                                             <small><?= timeAgo($notif['created_at']) ?></small>
                                         </div>
                                     </a>
@@ -76,17 +81,20 @@ $currentPage = basename($_SERVER['PHP_SELF'], '.php');
                     </div>
 
                     <div class="dropdown">
-                        <button class="topbar-profile" data-bs-toggle="dropdown">
-                            <div class="profile-avatar">
-                                <?= strtoupper(substr($user['first_name'], 0, 1) . substr($user['last_name'], 0, 1)) ?>
-                            </div>
+                        <button type="button" class="topbar-profile" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="profile-avatar"><?= e(userInitials($user)) ?></div>
                             <div class="profile-info d-none d-md-block">
-                                <span class="profile-name"><?= e($user['first_name'] . ' ' . $user['last_name']) ?></span>
+                                <span class="profile-name"><?= e(userFullName($user)) ?></span>
                                 <span class="profile-role">Administrator</span>
                             </div>
-                            <i class="bi bi-chevron-down d-none d-md-block"></i>
+                            <i class="bi bi-chevron-down profile-chevron d-none d-md-block"></i>
                         </button>
-                        <ul class="dropdown-menu dropdown-menu-end">
+                        <ul class="dropdown-menu dropdown-menu-end profile-dropdown">
+                            <li class="dropdown-header profile-dropdown-header">
+                                <strong><?= e(userFullName($user)) ?></strong>
+                                <small><?= e($user['email']) ?></small>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a></li>
                             <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
                             <li><hr class="dropdown-divider"></li>

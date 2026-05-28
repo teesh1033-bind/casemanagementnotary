@@ -29,7 +29,7 @@ class Auth
         $_SESSION['user_id']    = (int) $user['id'];
         $_SESSION['user_email'] = $user['email'];
         $_SESSION['user_role']  = $user['role'];
-        $_SESSION['user_name']  = trim($user['first_name'] . ' ' . $user['last_name']);
+        $_SESSION['user_name']  = userFullName($user);
         $_SESSION['logged_in']  = true;
         $_SESSION['login_time'] = time();
     }
@@ -65,7 +65,7 @@ class Auth
         }
 
         return Database::fetch(
-            'SELECT id, email, role, first_name, last_name, phone, avatar, status FROM users WHERE id = ?',
+            'SELECT id, email, role, name, avatar, status FROM users WHERE id = ?',
             [$_SESSION['user_id']]
         );
     }
@@ -98,21 +98,29 @@ class Auth
 
     private static function updateLastLogin(int $userId): void
     {
-        Database::query('UPDATE users SET last_login = NOW() WHERE id = ?', [$userId]);
+        Database::query(
+            'UPDATE users SET last_login = NOW(), last_login_at = NOW() WHERE id = ?',
+            [$userId]
+        );
     }
 
     private static function logAudit(int $userId, string $action): void
     {
-        Database::insert(
-            'INSERT INTO audit_logs (user_id, action, ip_address, user_agent, details) VALUES (?, ?, ?, ?, ?)',
-            [
-                $userId,
-                $action,
-                $_SERVER['REMOTE_ADDR'] ?? null,
-                substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
-                json_encode(['timestamp' => date('c')]),
-            ]
-        );
+        try {
+            Database::insert(
+                'INSERT INTO audit_logs (user_id, event, auditable_type, auditable_id, ip_address, user_agent) VALUES (?, ?, ?, ?, ?, ?)',
+                [
+                    $userId,
+                    $action,
+                    'user',
+                    $userId,
+                    $_SERVER['REMOTE_ADDR'] ?? null,
+                    substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500),
+                ]
+            );
+        } catch (Throwable $e) {
+            // Audit logging is optional — do not block login
+        }
     }
 
     public static function createPasswordReset(string $email): array

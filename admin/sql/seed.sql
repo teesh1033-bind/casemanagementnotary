@@ -1,5 +1,5 @@
 -- Notary Management System - Seed Data
--- Default admin: admin@notary.com / Admin@123
+-- Default admin: admin@admin.com / admin123
 
 USE notary_management;
 
@@ -18,14 +18,14 @@ INSERT INTO company_settings (
     '+1 (555) 123-4567'
 );
 
--- Default admin user (password: Admin@123)
+-- Default admin user (password: admin123)
 INSERT INTO users (email, password, role, first_name, last_name, phone, status)
 VALUES (
-    'admin@notary.com',
-    '$2y$10$lqzX1voS/Y7y43B4u4Hppu9j9W1fFDAYYsjiSAAqZ92HUcrQCY/q.',
+    'admin@admin.com',
+    '$2y$10$pjAbMHgW7P621hNTLaAP..AnVdnx6EWDig26cQHn0jqt/nBT.g.aW',
     'admin',
-    'System',
-    'Administrator',
+    'Admin',
+    'User',
     '+1 (555) 000-0001',
     'active'
 );

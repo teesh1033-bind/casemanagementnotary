@@ -3,11 +3,12 @@
 return [
     'app_name'    => 'Notary Management System',
     'app_url'     => 'http://localhost/casemanagement/admin',
+    'client_url'  => 'http://localhost/casemanagement/client',
     'timezone'    => 'America/New_York',
     'debug'       => true,
 
     'session' => [
-        'name'     => 'NOTARY_ADMIN_SESSION',
+        'name'     => 'NOTARY_SESSION',
         'lifetime' => 7200,
     ],
 

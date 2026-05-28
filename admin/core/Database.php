@@ -9,7 +9,8 @@ class Database
     public static function getInstance(): PDO
     {
         if (self::$instance === null) {
-            $config = require __DIR__ . '/../config/database.php';
+            $dbConfigPath = defined('APP_DATABASE_CONFIG') ? APP_DATABASE_CONFIG : __DIR__ . '/../config/database.php';
+            $config = require $dbConfigPath;
 
             $dsn = sprintf(
                 'mysql:host=%s;port=%d;dbname=%s;charset=%s',
