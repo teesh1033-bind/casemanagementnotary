@@ -23,3 +23,8 @@ require_once __DIR__ . '/CSRF.php';
 require_once __DIR__ . '/Auth.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/CaseService.php';
+require_once __DIR__ . '/ClientService.php';
+require_once __DIR__ . '/MailService.php';
+require_once __DIR__ . '/AppointmentService.php';
+require_once __DIR__ . '/GoogleCalendarService.php';
+require_once __DIR__ . '/SettingsService.php';

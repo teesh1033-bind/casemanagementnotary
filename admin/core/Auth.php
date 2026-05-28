@@ -7,12 +7,20 @@ class Auth
     public static function attempt(string $email, string $password, string $requiredRole = 'admin'): array
     {
         $user = Database::fetch(
-            'SELECT * FROM users WHERE email = ? AND role = ? AND status = ? LIMIT 1',
-            [$email, $requiredRole, 'active']
+            'SELECT * FROM users WHERE email = ? AND role = ? LIMIT 1',
+            [$email, $requiredRole]
         );
 
         if (!$user || !password_verify($password, $user['password'])) {
             return ['success' => false, 'message' => 'Invalid email or password.'];
+        }
+
+        if (!self::isUserActive($user)) {
+            return ['success' => false, 'message' => 'This account is inactive. Contact support.'];
+        }
+
+        if ($requiredRole === 'client' && !self::ensureClientProfileLink($user)) {
+            return ['success' => false, 'message' => 'Client profile not found for this account.'];
         }
 
         self::login($user);
@@ -105,17 +113,73 @@ class Auth
     public static function requireClient(): void
     {
         if (!self::isClient()) {
-            header('Location: ' . clientUrl('auth/login.php'));
+            header('Location: ' . adminUrl('auth/login.php?portal=client'));
             exit;
         }
     }
 
-    public static function guest(): void
+    public static function guest(?string $portal = null): void
     {
-        if (self::check()) {
-            header('Location: ' . url('pages/dashboard.php'));
+        if (!self::check()) {
+            return;
+        }
+
+        if (self::isClient()) {
+            header('Location: ' . clientUrl('pages/dashboard.php'));
             exit;
         }
+
+        header('Location: ' . url('pages/dashboard.php'));
+        exit;
+    }
+
+    private static function isUserActive(array $user): bool
+    {
+        $status = $user['status'] ?? 'active';
+
+        if ($status !== 'active') {
+            return false;
+        }
+
+        if (array_key_exists('is_active', $user) && $user['is_active'] !== null && (int) $user['is_active'] !== 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static function ensureClientProfileLink(array $user): bool
+    {
+        $userId = (int) ($user['id'] ?? 0);
+        $email  = $user['email'] ?? '';
+
+        if ($userId <= 0) {
+            return false;
+        }
+
+        $client = Database::fetch('SELECT id, user_id FROM clients WHERE user_id = ? LIMIT 1', [$userId]);
+
+        if ($client) {
+            return true;
+        }
+
+        $client = Database::fetch('SELECT id, user_id FROM clients WHERE email = ? LIMIT 1', [$email]);
+
+        if (!$client) {
+            return false;
+        }
+
+        if (empty($client['user_id'])) {
+            Database::query('UPDATE clients SET user_id = ?, updated_at = NOW() WHERE id = ?', [$userId, $client['id']]);
+        }
+
+        try {
+            Database::query('UPDATE users SET client_id = ? WHERE id = ?', [(int) $client['id'], $userId]);
+        } catch (Throwable $e) {
+            // optional column
+        }
+
+        return true;
     }
 
     private static function updateLastLogin(int $userId): void

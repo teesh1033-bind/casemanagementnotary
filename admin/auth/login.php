@@ -1,10 +1,15 @@
 <?php
 require_once __DIR__ . '/../core/bootstrap.php';
 
-Auth::guest();
+$portal = $_GET['portal'] ?? $_POST['portal'] ?? 'admin';
+if (!in_array($portal, ['admin', 'client'], true)) {
+    $portal = 'admin';
+}
+
+Auth::guest($portal);
 
 $error = '';
-$email = '';
+$email = old('email');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!CSRF::verifyRequest()) {
@@ -12,15 +17,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $email    = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
+        $portal   = $_POST['portal'] ?? 'admin';
 
-        if (empty($email) || empty($password)) {
+        if (!in_array($portal, ['admin', 'client'], true)) {
+            $portal = 'admin';
+        }
+
+        if ($email === '' || $password === '') {
             $error = 'Please enter both email and password.';
             setOld(['email' => $email]);
         } else {
-            $result = Auth::attempt($email, $password, 'admin');
+            $result = Auth::attempt($email, $password, $portal);
 
             if ($result['success']) {
                 clearOld();
+                if ($portal === 'client') {
+                    header('Location: ' . clientUrl('pages/dashboard.php'));
+                    exit;
+                }
                 redirect('pages/dashboard.php');
             }
 
@@ -32,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $company = getCompanySettings();
 $pageTitle = 'Sign In';
+$isClientPortal = $portal === 'client';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -48,7 +63,7 @@ $pageTitle = 'Sign In';
         :root {
             --primary: <?= e($company['primary_color']) ?>;
             --secondary: <?= e($company['secondary_color']) ?>;
-            --dark-accent: <?= e($company['dark_accent']) ?>;
+            --dark-accent: <?= e($company['dark_accent'] ?? '#000000') ?>;
         }
     </style>
 </head>
@@ -58,33 +73,45 @@ $pageTitle = 'Sign In';
             <div class="auth-visual-content">
                 <div class="auth-brand">
                     <div class="auth-logo">
-                        <i class="bi bi-shield-check"></i>
+                        <i class="bi <?= $isClientPortal ? 'bi-person-badge' : 'bi-shield-check' ?>"></i>
                     </div>
                     <h1><?= e($company['company_name']) ?></h1>
-                    <p>Secure admin portal for managing notary operations, clients, cases, and documents.</p>
+                    <p id="portalDescription">
+                        <?= $isClientPortal
+                            ? 'Secure client portal to view cases, documents, quotations, and appointments.'
+                            : 'Secure admin portal for managing notary operations, clients, cases, and documents.' ?>
+                    </p>
                 </div>
-                <div class="auth-features">
-                    <div class="auth-feature">
-                        <i class="bi bi-lock-fill"></i>
-                        <span>Enterprise-grade security</span>
-                    </div>
-                    <div class="auth-feature">
-                        <i class="bi bi-graph-up-arrow"></i>
-                        <span>Real-time analytics</span>
-                    </div>
-                    <div class="auth-feature">
-                        <i class="bi bi-people-fill"></i>
-                        <span>Client & case management</span>
-                    </div>
+                <div class="auth-features" id="portalFeatures">
+                    <?php if ($isClientPortal): ?>
+                        <div class="auth-feature"><i class="bi bi-folder2-open"></i><span>View your cases & documents</span></div>
+                        <div class="auth-feature"><i class="bi bi-receipt"></i><span>Track invoices & payments</span></div>
+                        <div class="auth-feature"><i class="bi bi-calendar-event"></i><span>See upcoming appointments</span></div>
+                    <?php else: ?>
+                        <div class="auth-feature"><i class="bi bi-lock-fill"></i><span>Enterprise-grade security</span></div>
+                        <div class="auth-feature"><i class="bi bi-graph-up-arrow"></i><span>Real-time analytics</span></div>
+                        <div class="auth-feature"><i class="bi bi-people-fill"></i><span>Client & case management</span></div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
 
         <div class="auth-form-panel">
-            <div class="auth-form-container">
+            <div class="auth-form-container auth-form-container-wide">
                 <div class="auth-form-header">
                     <h2>Welcome back</h2>
-                    <p>Sign in to your admin account</p>
+                    <p id="portalSubtitle"><?= $isClientPortal ? 'Sign in to your client portal' : 'Sign in to your admin account' ?></p>
+                </div>
+
+                <div class="portal-selector" role="tablist">
+                    <button type="button" class="portal-option <?= !$isClientPortal ? 'active' : '' ?>" data-portal="admin">
+                        <i class="bi bi-shield-lock"></i>
+                        <span><strong>Admin</strong><small>Manage operations</small></span>
+                    </button>
+                    <button type="button" class="portal-option <?= $isClientPortal ? 'active' : '' ?>" data-portal="client">
+                        <i class="bi bi-person-circle"></i>
+                        <span><strong>Client</strong><small>View your cases</small></span>
+                    </button>
                 </div>
 
                 <?php if ($error): ?>
@@ -101,12 +128,13 @@ $pageTitle = 'Sign In';
                     </div>
                 <?php endif; ?>
 
-                <form method="POST" action="" class="auth-form" novalidate>
+                <form method="POST" action="" class="auth-form" id="loginForm" novalidate>
                     <?= CSRF::field() ?>
+                    <input type="hidden" name="portal" id="portalInput" value="<?= e($portal) ?>">
 
                     <div class="form-floating mb-3">
                         <input type="email" class="form-control" id="email" name="email"
-                               placeholder="Email" value="<?= old('email') ?>" required autofocus>
+                               placeholder="Email" value="<?= e($email) ?>" required autofocus>
                         <label for="email"><i class="bi bi-envelope me-2"></i>Email Address</label>
                     </div>
 
@@ -119,7 +147,7 @@ $pageTitle = 'Sign In';
                         </button>
                     </div>
 
-                    <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4" id="adminExtras" style="<?= $isClientPortal ? 'display:none;' : '' ?>">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" id="remember" name="remember">
                             <label class="form-check-label" for="remember">Remember me</label>
@@ -127,8 +155,8 @@ $pageTitle = 'Sign In';
                         <a href="<?= url('auth/forgot-password.php') ?>" class="auth-link">Forgot password?</a>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-auth w-100">
-                        <span>Sign In</span>
+                    <button type="submit" class="btn btn-primary btn-auth w-100" id="submitBtn">
+                        <span><?= $isClientPortal ? 'Sign In to Client Portal' : 'Sign In to Admin Portal' ?></span>
                         <i class="bi bi-arrow-right"></i>
                     </button>
                 </form>
@@ -142,5 +170,38 @@ $pageTitle = 'Sign In';
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?= asset('js/app.js') ?>"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var portalInput = document.getElementById('portalInput');
+        var submitBtn = document.querySelector('#submitBtn span');
+        var portalSubtitle = document.getElementById('portalSubtitle');
+        var adminExtras = document.getElementById('adminExtras');
+        var portalDescription = document.getElementById('portalDescription');
+        var authLogo = document.querySelector('.auth-logo i');
+
+        document.querySelectorAll('.portal-option').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var portal = btn.dataset.portal;
+                document.querySelectorAll('.portal-option').forEach(function(b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                portalInput.value = portal;
+
+                if (portal === 'client') {
+                    submitBtn.textContent = 'Sign In to Client Portal';
+                    portalSubtitle.textContent = 'Sign in to your client portal';
+                    adminExtras.style.display = 'none';
+                    portalDescription.textContent = 'Secure client portal to view cases, documents, quotations, and appointments.';
+                    authLogo.className = 'bi bi-person-badge';
+                } else {
+                    submitBtn.textContent = 'Sign In to Admin Portal';
+                    portalSubtitle.textContent = 'Sign in to your admin account';
+                    adminExtras.style.display = '';
+                    portalDescription.textContent = 'Secure admin portal for managing notary operations, clients, cases, and documents.';
+                    authLogo.className = 'bi bi-shield-check';
+                }
+            });
+        });
+    });
+    </script>
 </body>
 </html>

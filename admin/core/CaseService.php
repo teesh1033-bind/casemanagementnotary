@@ -77,50 +77,178 @@ class CaseService
     public static function createCase(array $data, int $adminId): int
     {
         $caseNumber = self::generateNumber('CASE');
+        $instructions = trim($data['client_instructions'] ?? '') ?: null;
 
-        $id = Database::insert(
-            "INSERT INTO cases (case_number, title, description, service_type, service_fee,
-                                client_id, assigned_admin_id, priority, deadline, status, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
-            [
-                $caseNumber,
-                trim($data['title']),
-                trim($data['description'] ?? '') ?: null,
-                trim($data['service_type']),
-                (float) ($data['service_fee'] ?? 0),
-                (int) $data['client_id'],
-                !empty($data['assigned_admin_id']) ? (int) $data['assigned_admin_id'] : $adminId,
-                $data['priority'] ?? 'medium',
-                !empty($data['deadline']) ? $data['deadline'] : null,
-                $data['status'] ?? 'pending',
-            ]
-        );
+        try {
+            $id = Database::insert(
+                "INSERT INTO cases (case_number, title, description, client_instructions, service_type, service_fee,
+                                    client_id, assigned_admin_id, priority, deadline, status, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+                [
+                    $caseNumber,
+                    trim($data['title']),
+                    trim($data['description'] ?? '') ?: null,
+                    $instructions,
+                    trim($data['service_type']),
+                    (float) ($data['service_fee'] ?? 0),
+                    (int) $data['client_id'],
+                    !empty($data['assigned_admin_id']) ? (int) $data['assigned_admin_id'] : $adminId,
+                    $data['priority'] ?? 'medium',
+                    !empty($data['deadline']) ? $data['deadline'] : null,
+                    $data['status'] ?? 'pending',
+                ]
+            );
+        } catch (Throwable $e) {
+            $id = Database::insert(
+                "INSERT INTO cases (case_number, title, description, service_type, service_fee,
+                                    client_id, assigned_admin_id, priority, deadline, status, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())",
+                [
+                    $caseNumber,
+                    trim($data['title']),
+                    trim($data['description'] ?? '') ?: null,
+                    trim($data['service_type']),
+                    (float) ($data['service_fee'] ?? 0),
+                    (int) $data['client_id'],
+                    !empty($data['assigned_admin_id']) ? (int) $data['assigned_admin_id'] : $adminId,
+                    $data['priority'] ?? 'medium',
+                    !empty($data['deadline']) ? $data['deadline'] : null,
+                    $data['status'] ?? 'pending',
+                ]
+            );
+
+            if ($instructions) {
+                self::addNote($id, $adminId, 'Client instructions: ' . $instructions, false);
+            }
+        }
 
         self::notifyCaseEvent($id, 'case', 'New case created', "Case {$caseNumber} was created.", 'pages/case-view.php?id=' . $id);
 
         return $id;
     }
 
+    public static function runCreateWorkflow(int $caseId, array $data, int $adminId): array
+    {
+        $case   = self::getCaseById($caseId);
+        $client = ClientService::getById((int) ($case['client_id'] ?? 0));
+
+        if (!$case || !$client) {
+            return ['quote_sent' => false, 'login_sent' => false];
+        }
+
+        $instructions = trim($data['client_instructions'] ?? $case['client_instructions'] ?? '');
+        $sendEmails   = !isset($data['send_emails']) || !empty($data['send_emails']);
+
+        $quoteSent = false;
+        $loginSent = false;
+
+        if (!$sendEmails || empty($client['email'])) {
+            return ['quote_sent' => false, 'login_sent' => false];
+        }
+
+        $quotationId = self::generateQuotation($caseId, [
+            'title'  => 'Quotation — ' . $case['title'],
+            'amount' => (float) $case['service_fee'],
+        ]);
+
+        $quotation = Database::fetch('SELECT * FROM quotations WHERE id = ?', [$quotationId]);
+        $docPath   = null;
+
+        if (!empty($quotation['pdf_path'])) {
+            $config  = require __DIR__ . '/../config/config.php';
+            $docPath = rtrim($config['upload']['path'], '/\\') . '/' . ltrim($quotation['pdf_path'], '/');
+        }
+
+        $quoteSent = MailService::sendQuoteEmail(
+            $client,
+            $case,
+            $quotation['quotation_number'] ?? 'QUO',
+            $docPath && is_file($docPath) ? $docPath : null
+        );
+
+        if (!empty($client['user_id'])) {
+            $loginSent = MailService::sendLoginEmail($client, $instructions);
+        } elseif (!empty($data['create_client_login'])) {
+            $password = ClientService::generatePassword();
+            $userId   = self::provisionClientLogin((int) $client['id'], $client, $password);
+            if ($userId) {
+                $client['user_id'] = $userId;
+                $loginSent = MailService::sendLoginEmail($client, $instructions, $password);
+            }
+        }
+
+        return ['quote_sent' => $quoteSent, 'login_sent' => $loginSent];
+    }
+
+    private static function provisionClientLogin(int $clientId, array $client, string $password): ?int
+    {
+        if (!empty($client['user_id'])) {
+            return (int) $client['user_id'];
+        }
+
+        try {
+            $userId = Database::insert(
+                "INSERT INTO users (email, password, role, name, status, created_at, updated_at)
+                 VALUES (?, ?, 'client', ?, 'active', NOW(), NOW())",
+                [
+                    $client['email'],
+                    password_hash($password, PASSWORD_BCRYPT),
+                    clientFullName($client),
+                ]
+            );
+        } catch (Throwable $e) {
+            return null;
+        }
+
+        Database::query('UPDATE clients SET user_id = ?, updated_at = NOW() WHERE id = ?', [$userId, $clientId]);
+
+        return $userId;
+    }
+
     public static function updateCase(int $id, array $data): void
     {
-        Database::query(
-            "UPDATE cases SET title = ?, description = ?, service_type = ?, service_fee = ?,
-                              client_id = ?, assigned_admin_id = ?, priority = ?, deadline = ?, status = ?,
-                              updated_at = NOW()
-             WHERE id = ?",
-            [
-                trim($data['title']),
-                trim($data['description'] ?? '') ?: null,
-                trim($data['service_type']),
-                (float) ($data['service_fee'] ?? 0),
-                (int) $data['client_id'],
-                !empty($data['assigned_admin_id']) ? (int) $data['assigned_admin_id'] : null,
-                $data['priority'] ?? 'medium',
-                !empty($data['deadline']) ? $data['deadline'] : null,
-                $data['status'] ?? 'pending',
-                $id,
-            ]
-        );
+        $instructions = trim($data['client_instructions'] ?? '') ?: null;
+
+        try {
+            Database::query(
+                "UPDATE cases SET title = ?, description = ?, client_instructions = ?, service_type = ?, service_fee = ?,
+                                  client_id = ?, assigned_admin_id = ?, priority = ?, deadline = ?, status = ?,
+                                  updated_at = NOW()
+                 WHERE id = ?",
+                [
+                    trim($data['title']),
+                    trim($data['description'] ?? '') ?: null,
+                    $instructions,
+                    trim($data['service_type']),
+                    (float) ($data['service_fee'] ?? 0),
+                    (int) $data['client_id'],
+                    !empty($data['assigned_admin_id']) ? (int) $data['assigned_admin_id'] : null,
+                    $data['priority'] ?? 'medium',
+                    !empty($data['deadline']) ? $data['deadline'] : null,
+                    $data['status'] ?? 'pending',
+                    $id,
+                ]
+            );
+        } catch (Throwable $e) {
+            Database::query(
+                "UPDATE cases SET title = ?, description = ?, service_type = ?, service_fee = ?,
+                                  client_id = ?, assigned_admin_id = ?, priority = ?, deadline = ?, status = ?,
+                                  updated_at = NOW()
+                 WHERE id = ?",
+                [
+                    trim($data['title']),
+                    trim($data['description'] ?? '') ?: null,
+                    trim($data['service_type']),
+                    (float) ($data['service_fee'] ?? 0),
+                    (int) $data['client_id'],
+                    !empty($data['assigned_admin_id']) ? (int) $data['assigned_admin_id'] : null,
+                    $data['priority'] ?? 'medium',
+                    !empty($data['deadline']) ? $data['deadline'] : null,
+                    $data['status'] ?? 'pending',
+                    $id,
+                ]
+            );
+        }
 
         self::notifyCaseEvent($id, 'case', 'Case updated', 'Case details were updated.', 'pages/case-view.php?id=' . $id);
     }
@@ -404,7 +532,7 @@ class CaseService
             'details' => 'Due: ' . formatDate($due),
         ]);
 
-        self::notifyCaseEvent($caseId, 'invoice', 'Invoice generated', $number . ' — ' . formatCurrency($total), 'pages/case-view.php?id=' . $caseId . '#invoices');
+        self::notifyCaseEvent($caseId, 'invoice', 'Invoice generated', $number . ' — ' . formatCurrency($total), 'pages/case-view.php?id=' . $caseId . '#invoice-payments');
 
         return $id;
     }
@@ -451,7 +579,7 @@ class CaseService
                 'payment',
                 'Payment received',
                 formatCurrency($amount) . ' for ' . ($invoice['invoice_number'] ?? 'invoice'),
-                'pages/case-view.php?id=' . $caseId . '#payments'
+                'pages/case-view.php?id=' . $caseId . '#invoice-payments'
             );
         }
 
@@ -625,5 +753,37 @@ class CaseService
     {
         $config = require __DIR__ . '/../config/config.php';
         return rtrim($config['upload']['path'], '/\\') . '/' . ltrim($relativePath, '/\\');
+    }
+
+    public static function deleteCase(int $caseId): void
+    {
+        $case = self::getCaseById($caseId);
+        if (!$case) {
+            throw new RuntimeException('Case not found.');
+        }
+
+        foreach (self::getDocuments($caseId) as $doc) {
+            $path = $doc['file_path'] ?? $doc['stored_path'] ?? null;
+            if ($path && is_file(self::documentPath($path))) {
+                @unlink(self::documentPath($path));
+            }
+        }
+
+        Database::query('DELETE FROM cases WHERE id = ?', [$caseId]);
+    }
+
+    public static function deleteDocument(int $documentId, int $caseId): void
+    {
+        $doc = Database::fetch('SELECT * FROM documents WHERE id = ? AND case_id = ?', [$documentId, $caseId]);
+        if (!$doc) {
+            throw new RuntimeException('Document not found.');
+        }
+
+        $path = $doc['file_path'] ?? null;
+        if ($path && is_file(self::documentPath($path))) {
+            @unlink(self::documentPath($path));
+        }
+
+        Database::query('DELETE FROM documents WHERE id = ?', [$documentId]);
     }
 }

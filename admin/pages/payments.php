@@ -5,6 +5,7 @@ Auth::requireAdmin();
 
 $pageTitle = 'Payments';
 $payments = getAllPayments();
+$pendingInvoices = getPendingInvoices();
 $stats = getDashboardStats();
 $pageSubtitle = formatCurrency($stats['total_revenue']) . ' total revenue';
 
@@ -42,11 +43,16 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <div class="saas-card">
-    <div class="saas-card-header">
+    <div class="saas-card-header appointment-list-header">
         <div>
             <h2 class="saas-card-title">Payment History</h2>
-            <p class="saas-card-subtitle"><?= count($payments) ?> transactions</p>
+            <p class="saas-card-subtitle mb-0"><?= count($payments) ?> transactions</p>
         </div>
+        <?php if (!empty($pendingInvoices)): ?>
+            <button type="button" class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#recordPaymentModal">
+                <i class="bi bi-plus-lg"></i> Record Payment
+            </button>
+        <?php endif; ?>
     </div>
     <div class="table-toolbar">
         <div class="table-search">
@@ -62,7 +68,7 @@ require __DIR__ . '/../includes/header.php';
             </div>
         <?php else: ?>
             <div class="table-responsive">
-                <table class="table saas-table mb-0" id="dataTable">
+                <table class="table saas-table appointment-list-table mb-0" id="dataTable">
                     <thead>
                         <tr>
                             <th>Invoice</th>
@@ -71,6 +77,7 @@ require __DIR__ . '/../includes/header.php';
                             <th>Method</th>
                             <th>Status</th>
                             <th>Paid At</th>
+                            <th>Receipt</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -85,6 +92,15 @@ require __DIR__ . '/../includes/header.php';
                                 <td><?= e(ucwords(str_replace('_', ' ', $payment['payment_method']))) ?></td>
                                 <td><?= paymentStatusBadge(paymentStatusValue($payment)) ?></td>
                                 <td class="text-muted"><?= formatDateTime($payment['paid_at'] ?? $payment['created_at']) ?></td>
+                                <td>
+                                    <?php if (!empty($payment['receipt_id'])): ?>
+                                        <a href="<?= url('actions/receipt-download.php?id=' . (int) $payment['receipt_id']) ?>" class="btn btn-soft btn-sm" target="_blank">
+                                            <i class="bi bi-receipt"></i> <?= e($payment['receipt_number']) ?>
+                                        </a>
+                                    <?php else: ?>
+                                        —
+                                    <?php endif; ?>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -93,5 +109,54 @@ require __DIR__ . '/../includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<?php if (!empty($pendingInvoices)): ?>
+<div class="modal fade" id="recordPaymentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" action="<?= url('actions/payment-action.php') ?>" class="modal-content">
+            <?= CSRF::field() ?>
+            <input type="hidden" name="action" value="record_payment">
+            <div class="modal-header">
+                <h5 class="modal-title">Record Payment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Invoice</label>
+                    <select name="invoice_id" class="form-select" required>
+                        <?php foreach ($pendingInvoices as $inv): ?>
+                            <option value="<?= (int) $inv['id'] ?>">
+                                <?= e($inv['invoice_number']) ?> — <?= e(clientFullName($inv)) ?> — <?= formatCurrency((float) $inv['total']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Amount</label>
+                    <input type="number" step="0.01" min="0" name="amount" class="form-control" placeholder="Leave blank for full invoice amount">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Payment Method</label>
+                    <select name="payment_method" class="form-select">
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="cash">Cash</option>
+                        <option value="check">Check</option>
+                        <option value="stripe">Stripe</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-soft" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Record & Generate Receipt</button>
+            </div>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php require __DIR__ . '/../includes/footer.php'; ?>

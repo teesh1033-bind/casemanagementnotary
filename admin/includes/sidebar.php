@@ -8,14 +8,20 @@ $navItems = [
     ['icon' => 'bi-briefcase', 'label' => 'Cases', 'href' => 'pages/cases.php', 'page' => 'cases'],
     ['icon' => 'bi-credit-card', 'label' => 'Payments', 'href' => 'pages/payments.php', 'page' => 'payments'],
     ['icon' => 'bi-calendar3', 'label' => 'Appointments', 'href' => 'pages/appointments.php', 'page' => 'appointments'],
+    ['icon' => 'bi-bell', 'label' => 'Notifications', 'href' => 'pages/notifications.php', 'page' => 'notifications'],
     ['icon' => 'bi-robot', 'label' => 'AI Assistant', 'href' => 'pages/chatbot.php', 'page' => 'chatbot'],
+    ['icon' => 'bi-gear', 'label' => 'Settings', 'href' => 'pages/settings.php', 'page' => 'settings'],
 ];
 ?>
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="sidebar-brand">
             <div class="brand-icon">
-                <i class="bi bi-shield-check"></i>
+                <?php if ($logoUrl = SettingsService::logoUrl($company)): ?>
+                    <img src="<?= e($logoUrl) ?>" alt="" class="sidebar-logo">
+                <?php else: ?>
+                    <i class="bi bi-shield-check"></i>
+                <?php endif; ?>
             </div>
             <div class="brand-text">
                 <span class="brand-name"><?= e($company['company_name']) ?></span>

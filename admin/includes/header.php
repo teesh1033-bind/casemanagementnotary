@@ -15,6 +15,9 @@ $navNotifications = getRecentNotifications(Auth::id(), 5, true);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="<?= asset('css/app.css') ?>" rel="stylesheet">
+    <?php if (!empty($pageStyles)): ?>
+        <?= $pageStyles ?>
+    <?php endif; ?>
     <style>
         :root {
             --primary: <?= e($company['primary_color']) ?>;
@@ -65,7 +68,7 @@ $navNotifications = getRecentNotifications(Auth::id(), 5, true);
                                 <div class="dropdown-item-text text-muted text-center py-4 small">No notifications</div>
                             <?php else: ?>
                                 <?php foreach ($navNotifications as $notif): ?>
-                                    <a href="<?= url('actions/notification-read.php?id=' . (int) $notif['id']) ?>" class="dropdown-item notification-item unread">
+                                    <a href="<?= url('actions/notification-read.php?id=' . (int) $notif['id']) ?>" class="dropdown-item notification-item<?= empty($notif['is_read']) ? ' unread' : '' ?>">
                                         <div class="notification-icon">
                                             <i class="bi <?= notificationIcon($notif['type']) ?>"></i>
                                         </div>
@@ -77,6 +80,8 @@ $navNotifications = getRecentNotifications(Auth::id(), 5, true);
                                     </a>
                                 <?php endforeach; ?>
                             <?php endif; ?>
+                            <div class="dropdown-divider"></div>
+                            <a href="<?= url('pages/notifications.php') ?>" class="dropdown-item text-center small fw-semibold">View all notifications</a>
                         </div>
                     </div>
 
@@ -95,8 +100,7 @@ $navNotifications = getRecentNotifications(Auth::id(), 5, true);
                                 <small><?= e($user['email']) ?></small>
                             </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a></li>
+                            <li><a class="dropdown-item" href="<?= url('pages/settings.php') ?>"><i class="bi bi-gear me-2"></i>Settings</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item text-danger" href="<?= url('auth/logout.php') ?>"><i class="bi bi-box-arrow-right me-2"></i>Sign Out</a></li>
                         </ul>
@@ -105,3 +109,15 @@ $navNotifications = getRecentNotifications(Auth::id(), 5, true);
             </header>
 
             <main class="page-content">
+                <?php if ($msg = flash('success')): ?>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="bi bi-check-circle me-2"></i><?= e($msg) ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>
+                <?php if ($msg = flash('error')): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="bi bi-exclamation-circle me-2"></i><?= e($msg) ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                <?php endif; ?>

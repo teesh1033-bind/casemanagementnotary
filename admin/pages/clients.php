@@ -16,6 +16,7 @@ require __DIR__ . '/../includes/header.php';
             <h2 class="saas-card-title">Client Directory</h2>
             <p class="saas-card-subtitle">All registered client profiles</p>
         </div>
+        <a href="<?= url('pages/client-form.php') ?>" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add Client</a>
     </div>
     <div class="table-toolbar">
         <div class="table-search">
@@ -41,6 +42,7 @@ require __DIR__ . '/../includes/header.php';
                             <th>Location</th>
                             <th>Cases</th>
                             <th>Status</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -64,6 +66,9 @@ require __DIR__ . '/../includes/header.php';
                                 </td>
                                 <td><span class="badge bg-light text-dark"><?= (int) $client['case_count'] ?></span></td>
                                 <td><?= statusBadge($client['user_status']) ?></td>
+                                <td>
+                                    <a href="<?= url('pages/client-form.php?id=' . (int) $client['id']) ?>" class="btn btn-soft btn-sm">Edit</a>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>

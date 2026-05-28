@@ -68,6 +68,15 @@ require __DIR__ . '/../includes/header.php';
                     <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#modalProposal"><i class="bi bi-file-text me-2"></i>Generate Proposal</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="#documents" data-case-tab="documents"><i class="bi bi-upload me-2"></i>Upload Document</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="post" action="<?= url('actions/case-action.php') ?>" onsubmit="return confirm('Delete this case permanently?');">
+                            <?= CSRF::field() ?>
+                            <input type="hidden" name="action" value="delete_case">
+                            <input type="hidden" name="case_id" value="<?= $caseId ?>">
+                            <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Delete Case</button>
+                        </form>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -79,7 +88,7 @@ require __DIR__ . '/../includes/header.php';
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#documents" type="button">Documents</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#quotations" type="button">Quotations</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#invoices" type="button">Invoices</button></li>
-        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#payments" type="button">Payments</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#invoice-payments" type="button">Invoice & Payments</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes" type="button">Notes</button></li>
         <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#activity" type="button">Activity</button></li>
     </ul>
@@ -105,6 +114,12 @@ require __DIR__ . '/../includes/header.php';
                             <div class="case-description mt-3">
                                 <span class="case-detail-label">Description</span>
                                 <p><?= nl2br(e($case['description'])) ?></p>
+                            </div>
+                        <?php endif; ?>
+                        <?php if (!empty($case['client_instructions'])): ?>
+                            <div class="case-description mt-3">
+                                <span class="case-detail-label">Client Instructions</span>
+                                <p><?= nl2br(e($case['client_instructions'])) ?></p>
                             </div>
                         <?php endif; ?>
                     </div>
@@ -161,7 +176,16 @@ require __DIR__ . '/../includes/header.php';
                                         <td><span class="status-badge badge-<?= ($doc['upload_source'] ?? 'admin') === 'client' ? 'scheduled' : 'default' ?>"><?= ucfirst($doc['upload_source'] ?? 'admin') ?></span></td>
                                         <td><?= e($doc['uploader_name'] ?? 'System') ?></td>
                                         <td class="text-muted"><?= formatDateTime($doc['created_at']) ?></td>
-                                        <td><a href="<?= url('actions/document-download.php?id=' . $doc['id']) ?>" class="btn btn-soft btn-sm"><i class="bi bi-download"></i></a></td>
+                                        <td>
+                                            <a href="<?= url('actions/document-download.php?id=' . $doc['id']) ?>" class="btn btn-soft btn-sm"><i class="bi bi-download"></i></a>
+                                            <form method="post" action="<?= url('actions/case-action.php') ?>" class="d-inline" onsubmit="return confirm('Remove this document?');">
+                                                <?= CSRF::field() ?>
+                                                <input type="hidden" name="action" value="delete_document">
+                                                <input type="hidden" name="case_id" value="<?= $caseId ?>">
+                                                <input type="hidden" name="document_id" value="<?= (int) $doc['id'] ?>">
+                                                <button type="submit" class="btn btn-soft btn-sm text-danger"><i class="bi bi-trash"></i></button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 <?php endforeach; ?>
                             </tbody>
@@ -255,8 +279,8 @@ require __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
-        <!-- Payments & Receipts -->
-        <div class="tab-pane fade" id="payments">
+        <!-- Invoice & Payments -->
+        <div class="tab-pane fade" id="invoice-payments">
             <div class="row g-3">
                 <div class="col-lg-7">
                     <div class="case-panel">
@@ -293,6 +317,7 @@ require __DIR__ . '/../includes/header.php';
                                 <?php foreach ($workspace['receipts'] as $r): ?>
                                     <li>
                                         <div><strong><?= e($r['receipt_number']) ?></strong><small><?= formatCurrency((float) $r['amount']) ?></small></div>
+                                        <a href="<?= url('actions/receipt-download.php?id=' . (int) $r['id']) ?>" class="btn btn-soft btn-sm" target="_blank"><i class="bi bi-receipt"></i> View</a>
                                     </li>
                                 <?php endforeach; ?>
                             </ul>
@@ -437,6 +462,10 @@ require __DIR__ . '/../includes/header.php';
 $pageScripts = '<script>
 document.addEventListener("DOMContentLoaded", function() {
     var hash = window.location.hash.replace("#", "");
+    var tabAliases = { invoices: "invoices", payments: "invoice-payments" };
+    if (hash && tabAliases[hash]) {
+        hash = tabAliases[hash];
+    }
     if (hash) {
         var tabBtn = document.querySelector("[data-bs-target=\"#" + hash + "\"]");
         if (tabBtn) new bootstrap.Tab(tabBtn).show();

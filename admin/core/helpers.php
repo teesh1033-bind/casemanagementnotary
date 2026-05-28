@@ -81,6 +81,21 @@ function appointmentEnd(array $appointment): ?string
     return $appointment['ends_at'] ?? $appointment['end_time'] ?? null;
 }
 
+function normalizeDateTimeInput(string $value): string
+{
+    $value = trim(str_replace('T', ' ', $value));
+
+    if ($value === '') {
+        return '';
+    }
+
+    if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $value)) {
+        $value .= ':00';
+    }
+
+    return $value;
+}
+
 function paymentStatusValue(array $payment): string
 {
     return $payment['payment_status'] ?? $payment['status'] ?? 'pending';
@@ -232,20 +247,12 @@ function timeAgo(?string $datetime): string
 
 function getCompanySettings(): array
 {
-    static $settings = null;
+    return SettingsService::get();
+}
 
-    if ($settings === null) {
-        $settings = Database::fetch('SELECT * FROM company_settings LIMIT 1') ?? [
-            'company_name'    => 'Notary Management',
-            'primary_color'   => '#3aafa9',
-            'secondary_color' => '#00182c',
-            'dark_accent'     => '#000000',
-            'font_family'     => 'Montserrat',
-            'logo'            => null,
-        ];
-    }
-
-    return $settings;
+function clearCompanySettingsCache(): void
+{
+    SettingsService::clearCache();
 }
 
 function getDashboardStats(): array
@@ -524,6 +531,38 @@ function markNotificationAsRead(int $id, int $userId): bool
     return $stmt->rowCount() > 0;
 }
 
+function markAllNotificationsAsRead(int $userId): void
+{
+    Database::query('UPDATE notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0', [$userId]);
+}
+
+function deleteNotification(int $id, int $userId): void
+{
+    Database::query('DELETE FROM notifications WHERE id = ? AND user_id = ?', [$id, $userId]);
+}
+
+function getAllNotifications(int $userId, int $limit = 100): array
+{
+    return Database::fetchAll(
+        'SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT ?',
+        [$userId, $limit]
+    );
+}
+
+function getPendingInvoices(): array
+{
+    $statusCol = invoiceStatusColumn();
+
+    return Database::fetchAll(
+        "SELECT i.*, cl.first_name, cl.last_name, cl.company_name, cs.case_number, cs.title AS case_title
+         FROM invoices i
+         JOIN clients cl ON cl.id = i.client_id
+         LEFT JOIN cases cs ON cs.id = i.case_id
+         WHERE i.{$statusCol} IN ('pending', 'overdue', 'partially_paid')
+         ORDER BY i.due_date ASC, i.created_at DESC"
+    );
+}
+
 function resolveNotificationRedirect(?string $link): string
 {
     if ($link === null || trim($link) === '') {
@@ -550,6 +589,30 @@ function resolveNotificationRedirect(?string $link): string
     }
 
     return $link;
+}
+
+function notificationRedirectTarget(array $notif): string
+{
+    $target = resolveNotificationRedirect($notif['link'] ?? null);
+    $type   = $notif['type'] ?? '';
+
+    if ($type === 'invoice') {
+        if ($target === 'pages/dashboard.php') {
+            return 'pages/payments.php';
+        }
+
+        $target = str_replace(['#invoices', '#payments'], '#invoice-payments', $target);
+
+        if (str_contains($target, 'case-view.php') && !str_contains($target, '#')) {
+            $target .= '#invoice-payments';
+        }
+    }
+
+    if ($type === 'payment') {
+        $target = str_replace('#payments', '#invoice-payments', $target);
+    }
+
+    return $target;
 }
 
 function getUnreadNotificationCount(int $userId): int
@@ -918,11 +981,13 @@ function getAllCases(): array
 function getAllPayments(): array
 {
     return Database::fetchAll(
-        'SELECT p.*, p.payment_status AS status, i.invoice_number, i.total AS invoice_total,
-                cl.first_name, cl.last_name, cl.company_name
+        'SELECT p.*, p.payment_status AS status, i.invoice_number, i.total AS invoice_total, i.case_id,
+                cl.first_name, cl.last_name, cl.company_name,
+                r.id AS receipt_id, r.receipt_number
          FROM payments p
          JOIN invoices i ON i.id = p.invoice_id
-         JOIN clients cl ON cl.id = p.client_id
+         JOIN clients cl ON cl.id = i.client_id
+         LEFT JOIN receipts r ON r.payment_id = p.id
          ORDER BY p.created_at DESC'
     );
 }

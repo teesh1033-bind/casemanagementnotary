@@ -42,7 +42,7 @@ require __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
-    <form method="post" action="<?= url('actions/case-action.php') ?>" class="case-form">
+    <form method="post" action="<?= url('actions/case-action.php') ?>" class="case-form" enctype="multipart/form-data">
         <?= CSRF::field() ?>
         <input type="hidden" name="action" value="<?= $isEdit ? 'update_case' : 'create_case' ?>">
         <?php if ($isEdit): ?>
@@ -102,6 +102,9 @@ require __DIR__ . '/../includes/header.php';
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (!$isEdit): ?>
+                            <small class="text-muted d-block mt-1"><a href="<?= url('pages/client-form.php') ?>">Add a new client</a> if not listed.</small>
+                        <?php endif; ?>
                     </div>
                     <div class="col-md-6">
                         <label class="case-form-label" for="assigned_admin_id">Assigned Admin</label>
@@ -116,6 +119,42 @@ require __DIR__ . '/../includes/header.php';
                     </div>
                 </div>
             </div>
+
+            <?php if (!$isEdit): ?>
+            <div class="case-form-section">
+                <div class="case-form-section-head">
+                    <i class="bi bi-chat-left-text"></i>
+                    <div>
+                        <h2 class="case-form-section-title">Client Instructions & Files</h2>
+                        <p class="case-form-section-desc">Instructions emailed to the client and optional intake documents.</p>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="case-form-label" for="client_instructions">Instructions for Client</label>
+                        <textarea id="client_instructions" name="client_instructions" class="form-control case-form-control" rows="3"
+                                  placeholder="What the client should prepare, bring, or complete…"><?= e($case['client_instructions'] ?? '') ?></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="case-form-label" for="document">Upload File (optional)</label>
+                        <input type="file" id="document" name="document" class="form-control case-form-control"
+                               accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip">
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div>
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="send_emails" value="1" id="send_emails" checked>
+                                <label class="form-check-label" for="send_emails">Email quotation PDF to client</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="create_client_login" value="1" id="create_client_login">
+                                <label class="form-check-label" for="create_client_login">Create portal login if client has none</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <div class="case-form-section case-form-section-last">
                 <div class="case-form-section-head">

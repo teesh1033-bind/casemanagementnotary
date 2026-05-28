@@ -52,6 +52,12 @@ require __DIR__ . '/../includes/header.php';
                 <?php if ($case['description']): ?>
                     <div class="case-description mt-3"><span class="case-detail-label">Description</span><p><?= nl2br(e($case['description'])) ?></p></div>
                 <?php endif; ?>
+                <?php if (!empty($case['client_instructions'])): ?>
+                    <div class="case-description mt-3">
+                        <span class="case-detail-label">Your Instructions</span>
+                        <p><?= nl2br(e($case['client_instructions'])) ?></p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 

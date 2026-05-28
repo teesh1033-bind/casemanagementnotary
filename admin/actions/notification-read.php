@@ -22,7 +22,7 @@ if (!$notif) {
 
 markNotificationAsRead($id, Auth::id());
 
-$target = resolveNotificationRedirect($notif['link'] ?? null);
+$target = notificationRedirectTarget($notif);
 
 if (str_starts_with($target, 'http://') || str_starts_with($target, 'https://')) {
     header('Location: ' . $target);

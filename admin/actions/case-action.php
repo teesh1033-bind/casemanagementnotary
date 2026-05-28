@@ -41,7 +41,20 @@ try {
         case 'create_case':
             Auth::requireAdmin();
             $id = CaseService::createCase($_POST, Auth::id());
-            flash('success', 'Case created successfully.');
+
+            if (!empty($_FILES['document']['name'])) {
+                CaseService::uploadDocument($id, $_FILES['document'], Auth::id(), 'admin');
+            }
+
+            $emailResult = CaseService::runCreateWorkflow($id, $_POST, Auth::id());
+            $msg         = 'Case created successfully.';
+            if ($emailResult['quote_sent']) {
+                $msg .= ' Quotation email sent.';
+            }
+            if ($emailResult['login_sent']) {
+                $msg .= ' Portal login email sent.';
+            }
+            flash('success', $msg);
             redirect('pages/case-view.php?id=' . $id);
             break;
 
@@ -116,7 +129,28 @@ try {
             $invoiceId = (int) ($_POST['invoice_id'] ?? 0);
             CaseService::recordPayment($invoiceId, $_POST, Auth::id());
             flash('success', 'Payment recorded and receipt generated.');
-            redirectCase($caseId, 'payments');
+            redirectCase($caseId, 'invoice-payments');
+            break;
+
+        case 'delete_case':
+            Auth::requireAdmin();
+            if ($caseId <= 0) {
+                throw new RuntimeException('Invalid case.');
+            }
+            CaseService::deleteCase($caseId);
+            flash('success', 'Case deleted.');
+            redirect('pages/cases.php');
+            break;
+
+        case 'delete_document':
+            Auth::requireAdmin();
+            $documentId = (int) ($_POST['document_id'] ?? 0);
+            if ($caseId <= 0 || $documentId <= 0) {
+                throw new RuntimeException('Invalid document.');
+            }
+            CaseService::deleteDocument($documentId, $caseId);
+            flash('success', 'Document removed.');
+            redirectCase($caseId, 'documents');
             break;
 
         default:
