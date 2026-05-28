@@ -1,10 +1,20 @@
 -- Notary Management System - Database Schema
--- phpMyAdmin: select your database first, then import this file.
--- CLI/install.php creates the database automatically before import.
+-- phpMyAdmin: select case_management, open SQL tab, UNCHECK "Enable foreign key checks", then run this file.
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+-- Legacy tables from older versions of this database
+DROP TABLE IF EXISTS case_comments;
+DROP TABLE IF EXISTS case_events;
+DROP TABLE IF EXISTS case_lawyers;
+DROP TABLE IF EXISTS case_services;
+DROP TABLE IF EXISTS case_notes;
+DROP TABLE IF EXISTS lawyer_documents;
+DROP TABLE IF EXISTS lawyer_users;
+DROP TABLE IF EXISTS tasks;
+
+-- Application tables
 DROP TABLE IF EXISTS quotations;
 DROP TABLE IF EXISTS proposals;
 DROP TABLE IF EXISTS audit_logs;

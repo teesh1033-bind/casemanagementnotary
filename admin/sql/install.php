@@ -51,7 +51,7 @@ try {
     $dbConfig = require __DIR__ . '/../config/database.php';
     $host = $dbConfig['host'] ?? '127.0.0.1';
     $port = (int) ($dbConfig['port'] ?? 3306);
-    $database = $dbConfig['database'] ?? 'notary_management';
+    $database = $dbConfig['database'] ?? 'case_management';
     $username = $dbConfig['username'] ?? 'root';
     $password = $dbConfig['password'] ?? '';
     $charset = $dbConfig['charset'] ?? 'utf8mb4';
@@ -76,9 +76,12 @@ try {
         )
     );
     $pdo->exec('USE `' . str_replace('`', '``', $database) . '`');
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
 
     runSqlFile($pdo, __DIR__ . '/schema.sql', 'Schema imported');
     runSqlFile($pdo, __DIR__ . '/seed.sql', 'Seed data imported');
+
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
     out('');
     out('Database setup complete.');
