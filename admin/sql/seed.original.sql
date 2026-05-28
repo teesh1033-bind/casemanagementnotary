@@ -1,3 +1,6 @@
+-- ORIGINAL seed from GitHub repo (unmodified).
+-- Same content as seed.sql at initial clone.
+
 -- Notary Management System - Seed Data
 -- Default admin: admin@admin.com / admin123
 

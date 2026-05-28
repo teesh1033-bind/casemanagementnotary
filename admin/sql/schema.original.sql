@@ -1,3 +1,6 @@
+-- ORIGINAL schema from GitHub repo (unmodified).
+-- Same content as schema.sql at initial clone.
+
 -- Notary Management System - Database Schema
 -- Run this in MySQL (phpMyAdmin or CLI)
 
