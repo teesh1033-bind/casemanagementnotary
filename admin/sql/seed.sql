@@ -1,7 +1,6 @@
 -- Notary Management System - Seed Data
 -- Default admin: admin@admin.com / admin123
-
-USE notary_management;
+-- phpMyAdmin: select your database first, then import this file.
 
 -- Company settings with branding
 INSERT INTO company_settings (

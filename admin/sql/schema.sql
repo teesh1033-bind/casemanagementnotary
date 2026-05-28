@@ -1,16 +1,31 @@
 -- Notary Management System - Database Schema
--- Run this in MySQL (phpMyAdmin or CLI)
+-- phpMyAdmin: select your database first, then import this file.
+-- CLI/install.php creates the database automatically before import.
 
-CREATE DATABASE IF NOT EXISTS notary_management
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
 
-USE notary_management;
+DROP TABLE IF EXISTS quotations;
+DROP TABLE IF EXISTS proposals;
+DROP TABLE IF EXISTS audit_logs;
+DROP TABLE IF EXISTS password_resets;
+DROP TABLE IF EXISTS company_settings;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS appointments;
+DROP TABLE IF EXISTS receipts;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS invoices;
+DROP TABLE IF EXISTS documents;
+DROP TABLE IF EXISTS cases;
+DROP TABLE IF EXISTS clients;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================
 -- USERS (Admin & Client accounts)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     email           VARCHAR(255) NOT NULL UNIQUE,
     password        VARCHAR(255) NOT NULL,
@@ -32,7 +47,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- ============================================================
 -- CLIENTS (Extended profile for client-role users)
 -- ============================================================
-CREATE TABLE IF NOT EXISTS clients (
+CREATE TABLE clients (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id         INT UNSIGNED NOT NULL UNIQUE,
     company_name    VARCHAR(255) DEFAULT NULL,
@@ -50,7 +65,7 @@ CREATE TABLE IF NOT EXISTS clients (
 -- ============================================================
 -- CASES
 -- ============================================================
-CREATE TABLE IF NOT EXISTS cases (
+CREATE TABLE cases (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     case_number     VARCHAR(50) NOT NULL UNIQUE,
     title           VARCHAR(255) NOT NULL,
@@ -74,7 +89,7 @@ CREATE TABLE IF NOT EXISTS cases (
 -- ============================================================
 -- DOCUMENTS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS documents (
+CREATE TABLE documents (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     case_id         INT UNSIGNED DEFAULT NULL,
     uploaded_by     INT UNSIGNED NOT NULL,
@@ -94,7 +109,7 @@ CREATE TABLE IF NOT EXISTS documents (
 -- ============================================================
 -- INVOICES
 -- ============================================================
-CREATE TABLE IF NOT EXISTS invoices (
+CREATE TABLE invoices (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     invoice_number  VARCHAR(50) NOT NULL UNIQUE,
     case_id         INT UNSIGNED DEFAULT NULL,
@@ -118,7 +133,7 @@ CREATE TABLE IF NOT EXISTS invoices (
 -- ============================================================
 -- PAYMENTS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS payments (
+CREATE TABLE payments (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     invoice_id      INT UNSIGNED NOT NULL,
     amount          DECIMAL(12, 2) NOT NULL,
@@ -135,7 +150,7 @@ CREATE TABLE IF NOT EXISTS payments (
 -- ============================================================
 -- RECEIPTS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS receipts (
+CREATE TABLE receipts (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     receipt_number  VARCHAR(50) NOT NULL UNIQUE,
     payment_id      INT UNSIGNED NOT NULL,
@@ -152,7 +167,7 @@ CREATE TABLE IF NOT EXISTS receipts (
 -- ============================================================
 -- APPOINTMENTS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS appointments (
+CREATE TABLE appointments (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     case_id         INT UNSIGNED DEFAULT NULL,
     client_id       INT UNSIGNED NOT NULL,
@@ -178,7 +193,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 -- ============================================================
 -- NOTIFICATIONS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS notifications (
+CREATE TABLE notifications (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id         INT UNSIGNED NOT NULL,
     title           VARCHAR(255) NOT NULL,
@@ -195,7 +210,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- ============================================================
 -- COMPANY SETTINGS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS company_settings (
+CREATE TABLE company_settings (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     company_name    VARCHAR(255) NOT NULL DEFAULT 'Notary Management',
     logo            VARCHAR(500) DEFAULT NULL,
@@ -222,7 +237,7 @@ CREATE TABLE IF NOT EXISTS company_settings (
 -- ============================================================
 -- PASSWORD RESETS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS password_resets (
+CREATE TABLE password_resets (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     email           VARCHAR(255) NOT NULL,
     token           VARCHAR(255) NOT NULL,
@@ -236,7 +251,7 @@ CREATE TABLE IF NOT EXISTS password_resets (
 -- ============================================================
 -- AUDIT LOGS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS audit_logs (
+CREATE TABLE audit_logs (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id         INT UNSIGNED DEFAULT NULL,
     action          VARCHAR(100) NOT NULL,
@@ -255,7 +270,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 -- ============================================================
 -- PROPOSALS & QUOTATIONS
 -- ============================================================
-CREATE TABLE IF NOT EXISTS proposals (
+CREATE TABLE proposals (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     case_id         INT UNSIGNED NOT NULL,
     proposal_number VARCHAR(50) NOT NULL UNIQUE,
@@ -269,7 +284,7 @@ CREATE TABLE IF NOT EXISTS proposals (
     FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
-CREATE TABLE IF NOT EXISTS quotations (
+CREATE TABLE quotations (
     id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     case_id         INT UNSIGNED NOT NULL,
     quotation_number VARCHAR(50) NOT NULL UNIQUE,
