@@ -1,9 +1,21 @@
 <?php
 
+$host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$projectRoot = realpath(__DIR__ . '/../..');
+$docRoot = realpath($_SERVER['DOCUMENT_ROOT'] ?? '') ?: null;
+$relativeRoot = '';
+
+if ($projectRoot && $docRoot && str_starts_with(strtolower($projectRoot), strtolower($docRoot))) {
+    $relativeRoot = str_replace('\\', '/', substr($projectRoot, strlen($docRoot)));
+}
+
+$baseUrl = $scheme . '://' . $host . $relativeRoot;
+
 return [
     'app_name'    => 'Notary Management System',
-    'app_url'     => 'http://localhost/casemanagement/admin',
-    'client_url'  => 'http://localhost/casemanagement/client',
+    'app_url'     => $baseUrl . '/admin',
+    'client_url'  => $baseUrl . '/client',
     'timezone'    => 'America/New_York',
     'debug'       => true,
 
